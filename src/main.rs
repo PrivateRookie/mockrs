@@ -1,6 +1,8 @@
-use actix_web::{http, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{middleware, web, App, HttpServer};
+use dotenv::dotenv;
 use structopt::StructOpt;
 
+mod api;
 mod db;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -24,38 +26,27 @@ struct Config {
     port: usize,
 }
 
-fn index() -> HttpResponse {
-    HttpResponse::Ok().body(format!("Hello"))
-}
-
-fn db_serve(req: HttpRequest, data: web::Data<db::Database>) -> HttpResponse {
-    let mut database = data.data.lock().unwrap();
-    let mut keys: Vec<String> = req
-        .path()
-        .split("/")
-        .skip(1)
-        .map(|seg| seg.to_string())
-        .collect();
-    if keys == vec![""] {
-        keys = vec![];
-    };
-    let res = db::Database::get(&mut keys, &mut database);
-    match res {
-        Ok(obj) => HttpResponse::Ok().json(obj),
-        Err(e) => HttpResponse::build(http::StatusCode::BAD_REQUEST).json(e),
-    }
-}
-
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+    pretty_env_logger::init();
+
     let conf: Config = Config::from_args();
     let db = db::Database::load(&conf.db_file);
     let web_db = web::Data::new(db);
     HttpServer::new(move || {
         App::new()
             .register_data(web_db.clone())
-            .service(web::resource("/index").route(web::get().to(index)))
-            .service(web::resource("/*").route(web::get().to(db_serve)))
+            .wrap(middleware::Logger::default())
+            .service(web::resource("/index").route(web::get().to(api::server_info)))
+            .service(web::scope("/_actions").route("/flush", web::post().to(api::flush)))
+            .service(
+                web::resource("/*")
+                    .route(web::get().to(api::do_get))
+                    .route(web::post().to(api::do_post))
+                    .route(web::put().to(api::do_post))
+                    .route(web::delete().to(api::do_delete)),
+            )
     })
     .bind(format!("{}:{}", conf.host, conf.port))?
     .start()
