@@ -1,20 +1,45 @@
 use actix_web::{http, web, HttpRequest, HttpResponse};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use serde::{Serialize, Deserialize};
 
 use crate::db;
 
-fn extract_keys(req: &HttpRequest) -> Vec<String> {
-    let keys = req
-        .path()
-        .split("/")
-        .skip(1)
-        .map(|seg| seg.to_string())
-        .collect();
-    if keys == vec![""] {
-        vec![]
-    } else {
-        keys
+#[derive(Debug, Clone)]
+pub struct QueryKeys {
+    keys: Vec<String>,
+}
+
+impl QueryKeys {
+    pub fn from_req(req: &HttpRequest) -> QueryKeys {
+        let keys = req
+            .path()
+            .split("/")
+            .skip(1)
+            .map(|seg| seg.to_string())
+            .collect();
+        if keys == vec![""] {
+            QueryKeys { keys: vec![] }
+        } else {
+            QueryKeys { keys }
+        }
+    }
+
+    pub fn json_ptr(&self) -> String {
+        if self.len() == 0 {
+            String::new()
+        } else {
+            let mut res = String::from("/");
+            res.push_str(&self.keys.join("/"));
+            res
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    pub fn remove(&mut self, index: usize) -> String {
+        self.keys.remove(index)
     }
 }
 
@@ -27,7 +52,7 @@ pub fn server_info() -> HttpResponse {
 
 pub fn do_get(req: HttpRequest, data: web::Data<db::Database>) -> HttpResponse {
     let mut database = data.data.lock().unwrap();
-    let mut keys = extract_keys(&req);
+    let mut keys = QueryKeys::from_req(&req);
     match db::Database::get(&mut keys, &mut database) {
         Ok(obj) => HttpResponse::Ok().json(obj),
         Err(e) => HttpResponse::build(http::StatusCode::BAD_REQUEST).json(e),
@@ -40,7 +65,7 @@ pub fn do_post(
     obj: web::Json<Value>,
 ) -> HttpResponse {
     let mut database = data.data.lock().unwrap();
-    let mut keys = extract_keys(&req);
+    let mut keys = QueryKeys::from_req(&req);
     match db::Database::insert(&mut keys, &mut database, obj.0) {
         Ok(_) => HttpResponse::new(http::StatusCode::CREATED),
         Err(e) => HttpResponse::build(http::StatusCode::BAD_REQUEST).json(e),
@@ -49,7 +74,7 @@ pub fn do_post(
 
 pub fn do_delete(req: HttpRequest, data: web::Data<db::Database>) -> HttpResponse {
     let mut database = data.data.lock().unwrap();
-    let mut keys = extract_keys(&req);
+    let mut keys = QueryKeys::from_req(&req);
     match db::Database::delete(&mut keys, &mut database) {
         Ok(_) => HttpResponse::new(http::StatusCode::NO_CONTENT),
         Err(e) => HttpResponse::build(http::StatusCode::BAD_REQUEST).json(e),

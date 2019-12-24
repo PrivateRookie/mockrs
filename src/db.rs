@@ -1,5 +1,5 @@
-use log::{debug, info, warn};
-use serde_json::Value::{Array, Object};
+use crate::api;
+use log::debug;
 use serde_json::{json, Value};
 use std::fs;
 use std::sync::Mutex;
@@ -16,41 +16,42 @@ impl Database {
     }
 
     pub fn get<'a>(
-        keys: &mut Vec<String>,
+        keys: &mut api::QueryKeys,
         json_obj: &'a mut Value,
     ) -> Result<&'a mut Value, Value> {
-        if keys.len() == 0 {
-            Ok(json_obj)
-        } else {
-            let key = keys.remove(0);
-            match json_obj {
-                &mut Object(ref mut object) => match object.get_mut(&key) {
-                    Some(obj) => Self::get(keys, obj),
-                    None => Err(json!({"reason": "key error"})),
-                },
-                &mut Array(ref mut array) => match key.parse::<usize>() {
-                    Ok(index) => match array.get_mut(index) {
-                        None => Err(json!({"reason": "index error"})),
-                        Some(obj) => Self::get(keys, obj),
-                    },
-                    Err(_) => Err(json!({"reason": "uszie expected"})),
-                },
-                _ => Err(json!({"reason": "Unvalid Json Structure"})),
-            }
+        let json_ptr = &keys.json_ptr();
+        match json_obj.pointer_mut(json_ptr) {
+            Some(obj) => Ok(obj),
+            None => Err(json!({"reason": "key error"})),
         }
     }
 
-    pub fn insert(keys: &mut Vec<String>, json_obj: &mut Value, value: Value) -> Result<(), Value> {
-        match Self::get(keys, json_obj) {
-            Ok(target_obj) => {
-                *target_obj = value;
-                Ok(())
-            }
-            Err(e) => Err(e),
+    pub fn insert(
+        keys: &mut api::QueryKeys,
+        json_obj: &mut Value,
+        value: Value,
+    ) -> Result<(), Value> {
+        let target_key = keys.remove(keys.len() - 1);
+        match json_obj.pointer_mut(&keys.json_ptr()) {
+            Some(parent_obj) => match parent_obj {
+                Value::Object(obj) => {
+                    obj.insert(target_key, value);
+                    Ok(())
+                }
+                Value::Array(array) => match target_key.parse::<usize>() {
+                    Ok(idx) => {
+                        array.insert(idx, value);
+                        Ok(())
+                    }
+                    Err(_) => Err(json!({"reason": "Parse index as usize error"})),
+                },
+                _ => Err(json!({"reason": "Invalid json struct"})),
+            },
+            None => Err(json!({"reason": "key error"})),
         }
     }
 
-    pub fn delete(keys: &mut Vec<String>, json_obj: &mut Value) -> Result<(), Value> {
+    pub fn delete(keys: &mut api::QueryKeys, json_obj: &mut Value) -> Result<(), Value> {
         let target_key = keys.remove(keys.len() - 1);
         match Self::get(keys, json_obj) {
             Ok(parent_obj) => match parent_obj {
