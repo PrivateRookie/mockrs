@@ -77,11 +77,11 @@ impl Database {
         debug!("Flush data to {:?} -- start", file);
         match fs::write(&file, new_db) {
             Ok(_) => {
-                debug!("Flush data to {:?} -- done");
+                debug!("Flush data to {:?} -- done", file);
                 Ok(())
             }
             Err(e) => {
-                debug!("Flush data to {:?} -- failed");
+                debug!("Flush data to {:?} -- failed", file);
                 Err(json!({ "reason": format!("flush failed due to {:?}", e) }))
             }
         }
