@@ -17,11 +17,11 @@ struct Config {
     #[structopt(required = true, env = "MOCKRS_DB_FILE")]
     db_file: String,
 
-    /// listen ip
+    /// Listen ip
     #[structopt(long, default_value = "127.0.0.1", env = "MOCKRS_HOST")]
     host: String,
 
-    /// listen port
+    /// Listen port
     #[structopt(long, default_value = "9000", env = "MOCKRS_PORT")]
     port: usize,
 }

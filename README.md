@@ -54,7 +54,8 @@ run mockrs
 mockrs db.json
 ```
 
-do query
+### do query
+
 ```bash
 # get all content
 curl http://localhost:9000/ | jq
@@ -85,4 +86,59 @@ curl http://localhost:9000/posts/2 | jq
 curl http://localhost:9000/posts/2/name | jq
 
 "d"
+```
+
+### update entry 
+
+```bash
+# both "post" and "put" are OK
+curl http://localhost:9000/posts/2 \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"name": "XD"}'
+
+curl http://localhost:9000/posts/2 | jq
+
+{
+  "name":"XD"
+}
+```
+
+**note** you can insert entry on top field
+
+```bash
+curl http://localhost:9000/users \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '[]'
+
+curl http://localhost:9000/users | jq
+
+[]
+```
+
+### delete entry
+
+```bash
+curl http://localhost:9000/posts/2 -X DELETE
+
+curl http://localhost:9000/posts | jq
+
+[
+  {
+    "name": "a"
+  },
+  {
+    "name": "d"
+  }
+]
+```
+
+### flush data to a file
+
+```bash
+curl http://localhost:9000/_actions/flush \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"file": <path_to_file> }'
 ```
