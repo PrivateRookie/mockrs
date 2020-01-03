@@ -57,7 +57,7 @@ async fn main() -> std::io::Result<()> {
             let web_db = web::Data::new(db);
             HttpServer::new(move || {
                 App::new()
-                    .register_data(web_db.clone())
+                    .app_data(web_db.clone())
                     .wrap(middleware::Logger::default())
                     .service(web::resource("/index").route(web::get().to(api::server_info)))
                     .service(web::scope("/_actions").route("/flush", web::post().to(api::flush)))
@@ -70,7 +70,7 @@ async fn main() -> std::io::Result<()> {
                     )
             })
             .bind(format!("{}:{}", host, port))?
-            .start()
+            .run()
             .await
         }
         Config::Gen { template, output } => {
