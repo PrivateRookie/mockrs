@@ -1,8 +1,8 @@
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{http, middleware, web, App, HttpServer};
 use dotenv::dotenv;
 use jen::generator::Generator;
+use std::io::{prelude::*, Error, ErrorKind};
 use structopt::StructOpt;
-use std::io::{Error, ErrorKind, prelude::* };
 
 mod api;
 mod db;
@@ -64,6 +64,7 @@ async fn main() -> std::io::Result<()> {
                     .service(
                         web::resource("/*")
                             .route(web::get().to(api::do_get))
+                            .route(web::method(http::Method::OPTIONS).to(api::do_options))
                             .route(web::post().to(api::do_post))
                             .route(web::put().to(api::do_post))
                             .route(web::delete().to(api::do_delete)),
@@ -73,20 +74,18 @@ async fn main() -> std::io::Result<()> {
             .run()
             .await
         }
-        Config::Gen { template, output } => {
-            match Generator::new(template) {
-                Err(_) => Err(Error::new(ErrorKind::NotFound, "can not find template")),
-                Ok(mut gen) => {
-                    match output {
-                        None => println!("{}", gen.create()),
-                        Some(output) => {
-                            let mut f = std::fs::File::create(output)?;
-                            f.write(gen.create().as_bytes())?;
-                        }
+        Config::Gen { template, output } => match Generator::new(template) {
+            Err(_) => Err(Error::new(ErrorKind::NotFound, "can not find template")),
+            Ok(mut gen) => {
+                match output {
+                    None => println!("{}", gen.create()),
+                    Some(output) => {
+                        let mut f = std::fs::File::create(output)?;
+                        f.write(gen.create().as_bytes())?;
                     }
-                    Ok(())
                 }
+                Ok(())
             }
-        }
+        },
     }
 }

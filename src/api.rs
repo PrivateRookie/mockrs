@@ -81,6 +81,11 @@ pub fn do_delete(req: HttpRequest, data: web::Data<db::Database>) -> HttpRespons
     }
 }
 
+pub fn do_options(_req: HttpRequest, _data: web::Data<db::Database>) -> HttpResponse {
+    // TODO may need to handle options request more carefully
+    HttpResponse::new(http::StatusCode::NO_CONTENT)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlushConfig {
     file: String,
